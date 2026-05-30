@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 100" width="100%" height="100%">
+  <style>
+    .logo-text {
+      fill: #0f172a;
+    }
+    .logo-r {
+      fill: #64748b;
+    }
+    @media (prefers-color-scheme: dark) {
+      .logo-text {
+        fill: #f8fafc;
+      }
+      .logo-r {
+        fill: #94a3b8;
+      }
+    }
+  </style>
+
+  <!-- Centered styled text wordmark with transparent background & responsive color theme -->
+  <text x="250" y="65" class="logo-text" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="40" font-weight="200" letter-spacing="18" text-anchor="middle">
+    <tspan class="logo-r" font-weight="100">R</tspan>IAM
+  </text>
+</svg>

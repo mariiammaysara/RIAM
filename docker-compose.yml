@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Vector DB (pgvector)
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: riam-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: riam
+    volumes:
+      - riam_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d riam"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - riam-network
+
+  # 2. FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: riam-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - ENV=production
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/riam
+      - CLERK_SECRET_KEY=sk_test_clerk_secret
+      - CLERK_PUBLISHABLE_KEY=pk_test_clerk_pub
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_clerk_pub
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - OPENAI_API_KEY=sk-proj-openai_key
+      - LANGSMITH_API_KEY=lsv2_pt_key
+      - LANGSMITH_PROJECT=riam-support-agent
+      - FIRECRAWL_API_KEY=fc-key
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - riam-network
+
+  # 3. Adminer (Visual DB Admin)
+  adminer:
+    image: adminer:latest
+    container_name: riam-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - riam-network
+
+volumes:
+  riam_postgres_data:
+
+networks:
+  riam-network:
+    driver: bridge

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riam Widget Sandbox Client Page</title>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: system-ui, -apple-system, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            text-align: center;
+        }
+        .container {
+            max-width: 600px;
+            padding: 40px;
+            background: rgba(30, 41, 59, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+            backdrop-filter: blur(8px);
+        }
+        h1 {
+            background: linear-gradient(135deg, #a5b4fc 0%, #c084fc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-top: 0;
+        }
+        p {
+            color: #94a3b8;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div className="container">
+        <h1>Widget Integration Live Sandbox</h1>
+        <p>
+            This mock client page demonstrates the copy-paste integration of the <strong>Riam floating chatbot bubble</strong>.
+            Click the floating bubble in the bottom right corner to verify layout opening transitions, custom branding properties, and stream performance.
+        </p>
+    </div>
+
+    <!-- Embed Script (triggers the widget.js loaded locally) -->
+    <script 
+        src="/widget.js" 
+        data-agent-id="13018bd7-d246-42d0-b8fa-573b11b9e103" 
+        data-backend-url="http://localhost:8000">
+    </script>
+</body>
+</html>

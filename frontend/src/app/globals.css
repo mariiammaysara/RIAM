@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-base: #0a0b0f;
+    --bg-surface: #111318;
+    --bg-elevated: #181c24;
+    --border: #1e2330;
+    --accent: #7c6af7;
+    --accent-hover: #6b5ce7;
+    --text-primary: #e2e8f0;
+    --text-secondary: #8892a4;
+    --text-muted: #4a5568;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+
+    --background: var(--bg-base);
+    --foreground: var(--text-primary);
+  }
+}
+
+body {
+  color: var(--text-primary);
+  background: var(--bg-base);
+  font-family: var(--font-geist-sans), "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom chic scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Chic minimal transitions */
+.transition-chic {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Glassmorphism panel styling */
+.glass-panel {
+  background: rgba(17, 19, 24, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+/* Elegant skeleton loading shimmer */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer-bg {
+  background: linear-gradient(90deg, #111318 25%, #181c24 50%, #111318 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
+}
+
+/* Glowing ambient animations */
+@keyframes ambient-glow {
+  0%, 100% {
+    opacity: 0.05;
+    transform: translate(-50%, 0) scale(1);
+  }
+  50% {
+    opacity: 0.1;
+    transform: translate(-50%, -5%) scale(1.05);
+  }
+}
+
+.ambient-pulse {
+  animation: ambient-glow 8s infinite ease-in-out;
+}
+
+/* Premium gradient borders */
+.gradient-border-hover {
+  position: relative;
+}
+
+.gradient-border-hover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(to bottom right, transparent, rgba(124, 106, 247, 0.2), transparent);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gradient-border-hover:hover::before {
+  opacity: 1;
+}
+
+/* Custom shimmer swipe on button hover */
+@keyframes swipe {
+  100% {
+    left: 125%;
+  }
+}
+
+.hover-swipe {
+  position: relative;
+  overflow: hidden;
+}
+
+.hover-swipe::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -75%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.15) 100%);
+  transform: skewX(-25deg);
+  transition: none;
+}
+
+.hover-swipe:hover::after {
+  animation: swipe 0.75s ease-out;
+}
+
