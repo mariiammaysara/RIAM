@@ -1,0 +1,169 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" width="100%" height="100%">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 2 L 8 5 L 0 8 z" fill="#4a5568" />
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="100%" height="100%" fill="#0a0b0f" />
+
+  <!-- ==================== ARROWS (UNDER CARDS) ==================== -->
+  <!-- 1. Customer -> Chat Widget -->
+  <line x1="190" y1="87.5" x2="242" y2="87.5" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arrow)" />
+
+  <!-- 2. Chat Widget -> FastAPI -->
+  <line x1="380" y1="87.5" x2="432" y2="87.5" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arrow)" />
+
+  <!-- 3. FastAPI -> LangGraph -->
+  <line x1="505" y1="115" x2="505" y2="172" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="515" y="148" font-family="'Inter', sans-serif" font-size="10" fill="#8892a4">query</text>
+
+  <!-- 4. LangGraph -> Groq LLM -->
+  <line x1="570" y1="207.5" x2="622" y2="207.5" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arrow)" />
+
+  <!-- 5. LangGraph <-> pgvector DB (Double-headed arrow) -->
+  <line x1="505" y1="235" x2="505" y2="292" stroke="#4a5568" stroke-width="1.5" marker-start="url(#arrow)" marker-end="url(#arrow)" />
+
+  <!-- 6. HuggingFace -> pgvector DB -->
+  <line x1="505" y1="420" x2="505" y2="363" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arrow)" />
+
+  <!-- 7. Clerk -> FastAPI -->
+  <line x1="125" y1="420" x2="440" y2="115" stroke="#4a5568" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrow)" />
+  <text x="235" y="260" font-family="'Inter', sans-serif" font-size="10" fill="#8892a4" transform="rotate(-40 235 260)">auth</text>
+
+  <!-- 8. LangGraph -> LangSmith -->
+  <line x1="570" y1="207.5" x2="750" y2="447.5" stroke="#4a5568" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrow)" />
+  <text x="640" y="325" font-family="'Inter', sans-serif" font-size="10" fill="#8892a4" transform="rotate(53 640 325)">trace</text>
+
+  <!-- 9. LangGraph -> Human Operator -->
+  <line x1="570" y1="207.5" x2="750" y2="115" stroke="#4a5568" stroke-width="1.5" marker-end="url(#arrow)" />
+  <text x="635" y="153" font-family="'Inter', sans-serif" font-size="10" fill="#8892a4" transform="rotate(-27 635 153)">escalate</text>
+
+  <!-- 10. Neon Postgres -> pgvector DB (Dashed) -->
+  <line x1="315" y1="420" x2="440" y2="327.5" stroke="#4a5568" stroke-width="1.5" stroke-dasharray="3,3" marker-end="url(#arrow)" />
+  <text x="350" y="380" font-family="'Inter', sans-serif" font-size="10" fill="#8892a4" transform="rotate(-36 350 380)">host</text>
+
+
+  <!-- ==================== ROW 1: USER SIDE ==================== -->
+  
+  <!-- Customer -->
+  <g transform="translate(60, 60)">
+    <rect width="130" height="55" rx="8" fill="#111318" stroke="#1e2330" stroke-width="1.5" />
+    <circle cx="20" cy="27.5" r="10" fill="#7c6af7" opacity="0.15" />
+    <circle cx="20" cy="27.5" r="10" fill="none" stroke="#7c6af7" stroke-width="1" />
+    <text x="20" y="31" font-family="'Outfit', 'Inter', sans-serif" font-size="10" font-weight="bold" fill="#7c6af7" text-anchor="middle">C</text>
+    <text x="38" y="24" font-family="'Outfit', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0">Customer</text>
+    <text x="38" y="38" font-family="'Inter', sans-serif" font-size="9" fill="#8892a4">Browser Client</text>
+  </g>
+
+  <!-- Chat Widget -->
+  <g transform="translate(250, 60)">
+    <rect width="130" height="55" rx="8" fill="#111318" stroke="#1e2330" stroke-width="1.5" />
+    <circle cx="20" cy="27.5" r="10" fill="#7c6af7" opacity="0.15" />
+    <circle cx="20" cy="27.5" r="10" fill="none" stroke="#7c6af7" stroke-width="1" />
+    <text x="20" y="31" font-family="'Outfit', 'Inter', sans-serif" font-size="10" font-weight="bold" fill="#7c6af7" text-anchor="middle">W</text>
+    <text x="38" y="24" font-family="'Outfit', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0">Chat Widget</text>
+    <text x="38" y="38" font-family="'Inter', sans-serif" font-size="9" fill="#8892a4">widget.js Client</text>
+  </g>
+
+  <!-- FastAPI -->
+  <g transform="translate(440, 60)">
+    <rect width="130" height="55" rx="8" fill="#111318" stroke="#7c6af7" stroke-width="1.5" />
+    <circle cx="20" cy="27.5" r="10" fill="#7c6af7" opacity="0.15" />
+    <circle cx="20" cy="27.5" r="10" fill="none" stroke="#7c6af7" stroke-width="1" />
+    <text x="20" y="31" font-family="'Outfit', 'Inter', sans-serif" font-size="10" font-weight="bold" fill="#7c6af7" text-anchor="middle">F</text>
+    <text x="38" y="24" font-family="'Outfit', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0">FastAPI</text>
+    <text x="38" y="38" font-family="'Inter', sans-serif" font-size="9" fill="#8892a4">Backend API</text>
+  </g>
+
+
+  <!-- ==================== ROW 2: AI BRAIN ==================== -->
+
+  <!-- LangGraph -->
+  <g transform="translate(440, 180)">
+    <rect width="130" height="55" rx="8" fill="#111318" stroke="#7c6af7" stroke-width="1.5" />
+    <circle cx="20" cy="27.5" r="10" fill="#7c6af7" opacity="0.15" />
+    <circle cx="20" cy="27.5" r="10" fill="none" stroke="#7c6af7" stroke-width="1" />
+    <text x="20" y="31" font-family="'Outfit', 'Inter', sans-serif" font-size="10" font-weight="bold" fill="#7c6af7" text-anchor="middle">L</text>
+    <text x="38" y="24" font-family="'Outfit', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0">LangGraph</text>
+    <text x="38" y="38" font-family="'Inter', sans-serif" font-size="9" fill="#8892a4">State Engine</text>
+  </g>
+
+  <!-- Groq LLM -->
+  <g transform="translate(630, 180)">
+    <rect width="130" height="55" rx="8" fill="#111318" stroke="#1e2330" stroke-width="1.5" />
+    <circle cx="20" cy="27.5" r="10" fill="#7c6af7" opacity="0.15" />
+    <circle cx="20" cy="27.5" r="10" fill="none" stroke="#7c6af7" stroke-width="1" />
+    <text x="20" y="31" font-family="'Outfit', 'Inter', sans-serif" font-size="10" font-weight="bold" fill="#7c6af7" text-anchor="middle">G</text>
+    <text x="38" y="24" font-family="'Outfit', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0">Groq LLM</text>
+    <text x="38" y="38" font-family="'Inter', sans-serif" font-size="9" fill="#8892a4">Llama-3.3 Model</text>
+  </g>
+
+  <!-- pgvector DB -->
+  <g transform="translate(440, 300)">
+    <rect width="130" height="55" rx="8" fill="#111318" stroke="#1e2330" stroke-width="1.5" />
+    <circle cx="20" cy="27.5" r="10" fill="#7c6af7" opacity="0.15" />
+    <circle cx="20" cy="27.5" r="10" fill="none" stroke="#7c6af7" stroke-width="1" />
+    <text x="20" y="31" font-family="'Outfit', 'Inter', sans-serif" font-size="10" font-weight="bold" fill="#7c6af7" text-anchor="middle">V</text>
+    <text x="38" y="24" font-family="'Outfit', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0">pgvector DB</text>
+    <text x="38" y="38" font-family="'Inter', sans-serif" font-size="9" fill="#8892a4">Vector Store</text>
+  </g>
+
+
+  <!-- ==================== ROW 3: SUPPORTING ==================== -->
+
+  <!-- Clerk Auth -->
+  <g transform="translate(60, 420)">
+    <rect width="130" height="55" rx="8" fill="#111318" stroke="#1e2330" stroke-width="1.5" />
+    <circle cx="20" cy="27.5" r="10" fill="#7c6af7" opacity="0.15" />
+    <circle cx="20" cy="27.5" r="10" fill="none" stroke="#7c6af7" stroke-width="1" />
+    <text x="20" y="31" font-family="'Outfit', 'Inter', sans-serif" font-size="10" font-weight="bold" fill="#7c6af7" text-anchor="middle">A</text>
+    <text x="38" y="24" font-family="'Outfit', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0">Clerk Auth</text>
+    <text x="38" y="38" font-family="'Inter', sans-serif" font-size="9" fill="#8892a4">User Security</text>
+  </g>
+
+  <!-- Neon Postgres -->
+  <g transform="translate(250, 420)">
+    <rect width="130" height="55" rx="8" fill="#111318" stroke="#1e2330" stroke-width="1.5" />
+    <circle cx="20" cy="27.5" r="10" fill="#7c6af7" opacity="0.15" />
+    <circle cx="20" cy="27.5" r="10" fill="none" stroke="#7c6af7" stroke-width="1" />
+    <text x="20" y="31" font-family="'Outfit', 'Inter', sans-serif" font-size="10" font-weight="bold" fill="#7c6af7" text-anchor="middle">P</text>
+    <text x="38" y="24" font-family="'Outfit', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0">Neon DB</text>
+    <text x="38" y="38" font-family="'Inter', sans-serif" font-size="9" fill="#8892a4">PostgreSQL host</text>
+  </g>
+
+  <!-- HuggingFace Embeddings -->
+  <g transform="translate(440, 420)">
+    <rect width="130" height="55" rx="8" fill="#111318" stroke="#1e2330" stroke-width="1.5" />
+    <circle cx="20" cy="27.5" r="10" fill="#7c6af7" opacity="0.15" />
+    <circle cx="20" cy="27.5" r="10" fill="none" stroke="#7c6af7" stroke-width="1" />
+    <text x="20" y="31" font-family="'Outfit', 'Inter', sans-serif" font-size="10" font-weight="bold" fill="#7c6af7" text-anchor="middle">H</text>
+    <text x="38" y="24" font-family="'Outfit', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0">HuggingFace</text>
+    <text x="38" y="38" font-family="'Inter', sans-serif" font-size="9" fill="#8892a4">Local mpnet-v2</text>
+  </g>
+
+  <!-- LangSmith -->
+  <g transform="translate(750, 420)">
+    <rect width="130" height="55" rx="8" fill="#111318" stroke="#1e2330" stroke-width="1.5" />
+    <circle cx="20" cy="27.5" r="10" fill="#7c6af7" opacity="0.15" />
+    <circle cx="20" cy="27.5" r="10" fill="none" stroke="#7c6af7" stroke-width="1" />
+    <text x="20" y="31" font-family="'Outfit', 'Inter', sans-serif" font-size="10" font-weight="bold" fill="#7c6af7" text-anchor="middle">S</text>
+    <text x="38" y="24" font-family="'Outfit', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0">LangSmith</text>
+    <text x="38" y="38" font-family="'Inter', sans-serif" font-size="9" fill="#8892a4">Observability</text>
+  </g>
+
+
+  <!-- ==================== ESCALATION ==================== -->
+
+  <!-- Human Operator Inbox -->
+  <g transform="translate(750, 60)">
+    <rect width="130" height="55" rx="8" fill="#111318" stroke="#ef4444" stroke-width="1.5" />
+    <circle cx="20" cy="27.5" r="10" fill="#ef4444" opacity="0.15" />
+    <circle cx="20" cy="27.5" r="10" fill="none" stroke="#ef4444" stroke-width="1" />
+    <text x="20" y="31" font-family="'Outfit', 'Inter', sans-serif" font-size="10" font-weight="bold" fill="#ef4444" text-anchor="middle">O</text>
+    <text x="38" y="24" font-family="'Outfit', 'Inter', sans-serif" font-size="12" font-weight="bold" fill="#e2e8f0">Human Agent</text>
+    <text x="38" y="38" font-family="'Inter', sans-serif" font-size="9" fill="#8892a4">Support Inbox</text>
+  </g>
+
+</svg>
