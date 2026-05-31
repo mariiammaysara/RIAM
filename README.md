@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <a href="http://localhost:3000/test-widget.html"><strong><u>Live Demo</u></strong></a> &nbsp;&bull;&nbsp; 
+  <a href="https://riam-delta.vercel.app/"><strong><u>Live Demo</u></strong></a> &nbsp;&bull;&nbsp; 
   <a href="http://localhost:8000/docs"><strong><u>API Docs</u></strong></a> &nbsp;&bull;&nbsp; 
   <a href="https://github.com/mariiammaysara/RIAM/issues"><strong><u>Report Issue</u></strong></a>
 </p>
