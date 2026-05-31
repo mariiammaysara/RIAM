@@ -5,8 +5,9 @@ Supports SQLite fallback for robust local test automation (pytest).
 """
 from typing import Any, Dict, List, Tuple
 import uuid
-from sqlalchemy import select
+from sqlalchemy import select, cast
 from sqlalchemy.orm import joinedload
+from pgvector.sqlalchemy import Vector
 
 from app.models.base import DocumentChunk, KnowledgeBase
 from app.repositories.base import BaseRepository
@@ -78,7 +79,8 @@ class KnowledgeBaseRepository(BaseRepository[KnowledgeBase]):
             return [(chunk, 0.0) for chunk in result.scalars().all()]
 
         # Standard high-performance pgvector Cosine distance search in PostgreSQL
-        distance_col = DocumentChunk.embedding.cosine_distance(embedding).label("distance")
+        vector_embedding = cast(embedding, Vector(len(embedding)))
+        distance_col = DocumentChunk.embedding.cosine_distance(vector_embedding).label("distance")
         
         query = (
             select(DocumentChunk, distance_col)
@@ -89,4 +91,10 @@ class KnowledgeBaseRepository(BaseRepository[KnowledgeBase]):
         )
         
         result = await self.db.execute(query)
-        return [(row[0], row[1]) for row in result.all()]
+        rows = result.all()
+        
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"Found {len(rows)} chunks for query")
+        
+        return [(row[0], row[1]) for row in rows]

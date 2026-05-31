@@ -1,24 +1,50 @@
-# Python-generated files
+# Python
 __pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
 
-# Virtual environments
-.venv
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Environment variables
 .env
 .env.local
-.env.*
+.env.*.local
 
-# Testing & Cache
+# Database
+*.db
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Testing
 .pytest_cache/
 .coverage
 htmlcov/
-tmp/
-*.log
 
-# IDEs
-.vscode/
-.idea/
+# Build
+dist/
+build/
+*.egg-info/
+
+# Alembic (keep versions folder but ignore pyc)
+alembic/versions/__pycache__/
+
+# HuggingFace cache
+.cache/

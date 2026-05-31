@@ -2,6 +2,13 @@
 Application configurations module.
 Loads environment variables from settings or a local .env file.
 """
+import os
+from dotenv import load_dotenv
+
+# Ensure environment variables are loaded into the OS environment
+# so that libraries like LangChain and LangSmith can access them directly.
+load_dotenv()
+
 from typing import List, Optional
 from pydantic import ValidationInfo, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -45,7 +52,16 @@ class Settings(BaseSettings):
     
     # Frontend Endpoint (For CORS)
     NEXT_PUBLIC_API_URL: str = "http://localhost:8000"
+    # Comma-separated origins: "http://localhost:3000,https://yourdomain.com"
     BACKEND_CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def parse_cors_origins(cls, v) -> List[str]:
+        """Supports both a JSON list and a comma-separated string for CORS origins."""
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(",") if origin.strip()]
+        return v
 
     # AI & Embeddings
     LLM_PROVIDER: str = "gemini"

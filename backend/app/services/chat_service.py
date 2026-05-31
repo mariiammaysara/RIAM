@@ -289,7 +289,7 @@ class ChatService:
         for msg in conversation.messages:
             if msg.sender == "customer":
                 graph_messages.append(HumanMessage(content=msg.content))
-            elif msg.sender == "agent":
+            elif msg.sender in ["agent", "human"]:
                 graph_messages.append(AIMessage(content=msg.content))
         # Add new query
         graph_messages.append(HumanMessage(content=user_message))

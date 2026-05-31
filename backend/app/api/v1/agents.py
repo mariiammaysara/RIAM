@@ -79,21 +79,16 @@ async def update_agent(
     return await repo.update(db_obj=agent, obj_in=agent_in)
 
 
-@router.delete("/{agent_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{agent_id}", status_code=204)
 async def delete_agent(
     agent_id: uuid.UUID,
     business_id: uuid.UUID = Depends(get_current_tenant_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Deletes an agent configuration.
-    """
     repo = AgentRepository(db, business_id)
     agent = await repo.get(agent_id)
     if not agent:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Agent not found"
-        )
+        raise HTTPException(status_code=404,
+                          detail="Not found")
     await repo.remove(agent_id)
-    return
+    return None

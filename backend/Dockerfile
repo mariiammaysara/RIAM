@@ -1,27 +1,32 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
-# Install compilation tools
+# Install compilation tools needed for some Python packages (e.g. psycopg2, cryptography)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Injects the ultra-fast Astral uv package manager binaries
+# Inject the ultra-fast Astral uv package manager
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Configure workspace
+# Set working directory
 WORKDIR /app
 
-# Ingest and lock dependencies
+# Copy dependency files first (enables Docker layer caching)
 COPY pyproject.toml uv.lock ./
 
-# Install python requirements in container using uv sync
-RUN uv sync --frozen --no-cache
+# Install Python dependencies (locked, no-cache for lean image)
+RUN uv sync --frozen --no-cache --no-dev
 
-# Import project files
+# Copy project source
 COPY . .
 
 # Expose FastAPI port
 EXPOSE 8000
 
-# Execute server using uvicorn inside the uv environment
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Health check so orchestrators know when the container is ready
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# Run the server
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

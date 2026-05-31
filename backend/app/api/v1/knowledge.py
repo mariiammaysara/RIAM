@@ -254,5 +254,57 @@ async def ingest_file(
         )
 
 
+@router.delete("/", status_code=204)
+async def delete_all_knowledge_sources(
+    business_id: uuid.UUID = Depends(get_current_tenant_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Deletes all knowledge bases (and all their vector embeddings via cascading)
+    associated with the current business tenant.
+    """
+    from sqlalchemy import select
+    from app.models.base import KnowledgeBase
+    
+    # Fetch all knowledge bases for the current business
+    stmt = select(KnowledgeBase).where(KnowledgeBase.business_id == business_id)
+    result = await db.execute(stmt)
+    kbs = result.scalars().all()
+    
+    # Delete each knowledge base (SQLAlchemy cascade deletes chunks automatically)
+    for kb in kbs:
+        await db.delete(kb)
+        
+    await db.commit()
+    return None
+
+
+@router.delete("/{kb_id}", status_code=204)
+async def delete_knowledge_source(
+    kb_id: uuid.UUID,
+    business_id: uuid.UUID = Depends(get_current_tenant_id),
+    db: AsyncSession = Depends(get_db)
+):
+    from sqlalchemy import delete
+    from app.models.base import DocumentChunk, KnowledgeBase
+    
+    # Delete chunks first
+    await db.execute(
+        delete(DocumentChunk).where(
+            DocumentChunk.knowledge_base_id == kb_id
+        )
+    )
+    await db.commit()
+    
+    # Delete knowledge base
+    repo = KnowledgeBaseRepository(db, business_id)
+    kb = await repo.get(kb_id)
+    if not kb:
+        raise HTTPException(status_code=404, 
+                          detail="Not found")
+    await repo.remove(kb_id)
+    return None
+
+
 
 

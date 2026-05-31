@@ -170,3 +170,88 @@ async def update_conversation_status(
         .where(Conversation.id == conversation_id)
     )
     return result.scalars().first()
+
+
+from pydantic import BaseModel
+from typing import Literal
+
+class MessageCreate(BaseModel):
+    sender: Literal["customer", "agent", "human"]
+    content: str
+
+
+@router.post("/{conversation_id}/messages", response_model=MessageResponse)
+async def create_conversation_message(
+    conversation_id: uuid.UUID,
+    msg_in: MessageCreate,
+    business_id: uuid.UUID = Depends(get_current_tenant_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Dashboard Endpoint: Appends a manual message (e.g. from live agent operator) to the conversation.
+    """
+    repo = ConversationRepository(db, business_id)
+    try:
+        msg = await repo.create_message(
+            conversation_id=conversation_id,
+            sender=msg_in.sender,
+            content=msg_in.content
+        )
+        await db.commit()
+        return msg
+    except PermissionError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=str(e)
+        )
+
+
+@router.get("/{conversation_id}/messages/public", response_model=List[MessageResponse])
+async def get_public_conversation_history(
+    conversation_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Public Endpoint: Retrieves chronological message history for a conversation.
+    Accessed by unauthenticated chat widgets.
+    """
+    stmt = select(Conversation).where(Conversation.id == conversation_id)
+    result = await db.execute(stmt)
+    conv = result.scalars().first()
+    if not conv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation session not found"
+        )
+    
+    repo = ConversationRepository(db, conv.business_id)
+    return await repo.get_messages(conversation_id)
+
+
+@router.post("/{conversation_id}/messages/public", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+async def create_public_conversation_message(
+    conversation_id: uuid.UUID,
+    payload: ChatRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Public Endpoint: Appends a customer message to the conversation.
+    Accessed by unauthenticated chat widgets (e.g. during human handoff mode).
+    """
+    stmt = select(Conversation).where(Conversation.id == conversation_id)
+    result = await db.execute(stmt)
+    conv = result.scalars().first()
+    if not conv:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation session not found"
+        )
+    
+    repo = ConversationRepository(db, conv.business_id)
+    msg = await repo.create_message(
+        conversation_id=conversation_id,
+        sender="customer",
+        content=payload.message
+    )
+    await db.commit()
+    return msg

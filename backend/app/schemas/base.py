@@ -7,6 +7,15 @@ from typing import Any, Dict, List, Literal, Optional
 import uuid
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+from app.core.enums import (
+    LLMProvider,
+    EmbeddingProvider,
+    KnowledgeSourceType,
+    ConversationStatus,
+    MessageSender,
+    KnowledgeBaseStatus
+)
+
 
 # --- Agent Schemas ---
 
@@ -14,7 +23,7 @@ class AgentBase(BaseModel):
     name: str = Field(..., max_length=255, description="Name of the customer support agent")
     system_prompt: str = Field(..., description="System prompt explaining instructions and personality")
     temperature: float = Field(0.2, ge=0.0, le=1.0, description="Creativity setting of the agent")
-    provider: str = Field("gemini", description="LLM provider (gemini, openai, anthropic)")
+    provider: LLMProvider = Field(LLMProvider.GEMINI, description="LLM provider (gemini, openai, anthropic)")
     config: Dict[str, Any] = Field(default_factory=dict, description="Branding and placement details")
     is_active: bool = Field(True, description="Toggles if chatbot responds to users")
 
@@ -27,7 +36,7 @@ class AgentUpdate(BaseModel):
     name: Optional[str] = Field(None, max_length=255)
     system_prompt: Optional[str] = None
     temperature: Optional[float] = Field(None, ge=0.0, le=1.0)
-    provider: Optional[str] = Field(None, description="LLM provider")
+    provider: Optional[LLMProvider] = Field(None, description="LLM provider")
     config: Optional[Dict[str, Any]] = None
     is_active: Optional[bool] = None
 
@@ -44,7 +53,7 @@ class AgentResponse(AgentBase):
 
 class KnowledgeBaseBase(BaseModel):
     name: str = Field(..., max_length=255, description="Name of the knowledge base document")
-    source_type: Literal["file", "url", "pdf"] = Field(..., description="Source medium")
+    source_type: KnowledgeSourceType = Field(..., description="Source medium")
     source_url: Optional[str] = Field(None, max_length=2048, description="Scraping target URL")
 
 
@@ -55,7 +64,7 @@ class KnowledgeBaseCreate(KnowledgeBaseBase):
 class KnowledgeBaseResponse(KnowledgeBaseBase):
     id: uuid.UUID
     business_id: uuid.UUID
-    status: str
+    status: KnowledgeBaseStatus
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -66,7 +75,7 @@ class KnowledgeBaseResponse(KnowledgeBaseBase):
 class MessageResponse(BaseModel):
     id: uuid.UUID
     conversation_id: uuid.UUID
-    sender: str
+    sender: MessageSender
     content: str
     created_at: datetime
 
@@ -86,13 +95,13 @@ class ConversationCreate(ConversationBase):
 
 
 class ConversationUpdate(BaseModel):
-    status: Literal["active", "handoff", "closed"]
+    status: ConversationStatus
 
 
 class ConversationResponse(ConversationBase):
     id: uuid.UUID
     business_id: uuid.UUID
-    status: str
+    status: ConversationStatus
     created_at: datetime
     messages: Optional[List[MessageResponse]] = None
 

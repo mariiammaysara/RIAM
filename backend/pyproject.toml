@@ -31,6 +31,7 @@ dependencies = [
     "langchain-groq>=1.1.2",
     "langchain-huggingface>=1.2.2",
     "sentence-transformers>=5.5.1",
+    "langchain-text-splitters>=1.1.2",
 ]
 
 [dependency-groups]

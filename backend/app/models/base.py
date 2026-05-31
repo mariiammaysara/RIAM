@@ -25,6 +25,14 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.enums import (
+    LLMProvider,
+    EmbeddingProvider,
+    KnowledgeSourceType,
+    ConversationStatus,
+    MessageSender,
+    KnowledgeBaseStatus
+)
 
 # 1. Define dialect-safe JSON Type (JSONB on Postgres, standard JSON on SQLite/others)
 JSON_TYPE = JSON().with_variant(JSONB, "postgresql")
@@ -148,7 +156,7 @@ class Agent(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     system_prompt: Mapped[str] = mapped_column(Text, nullable=False)
     temperature: Mapped[float] = mapped_column(Float, default=0.2, nullable=False)
-    provider: Mapped[str] = mapped_column(String(50), default="gemini", nullable=False)
+    provider: Mapped[LLMProvider] = mapped_column(String(50), default=LLMProvider.GEMINI, nullable=False)
     
     # JSON config containing branding (e.g. primaryColor, logoUrl, welcomeMessage)
     config: Mapped[Dict[str, Any]] = mapped_column(JSON_TYPE, default=dict, nullable=False)
@@ -172,9 +180,9 @@ class KnowledgeBase(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     business_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    source_type: Mapped[str] = mapped_column(String(50), nullable=False)  # "file" or "url"
+    source_type: Mapped[KnowledgeSourceType] = mapped_column(String(50), nullable=False)
     source_url: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="indexing", nullable=False)  # indexing, ready, failed
+    status: Mapped[KnowledgeBaseStatus] = mapped_column(String(50), default=KnowledgeBaseStatus.INDEXING, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
@@ -216,7 +224,7 @@ class Conversation(Base):
     agent_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("agents.id", ondelete="CASCADE"), nullable=False, index=True)
     customer_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     customer_email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
-    status: Mapped[str] = mapped_column(String(50), default="active", nullable=False)  # active, handoff, closed
+    status: Mapped[ConversationStatus] = mapped_column(String(50), default=ConversationStatus.ACTIVE, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )
@@ -236,7 +244,7 @@ class Message(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     conversation_id: Mapped[uuid.UUID] = mapped_column(Uuid, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False, index=True)
-    sender: Mapped[str] = mapped_column(String(50), nullable=False)  # customer, agent, human
+    sender: Mapped[MessageSender] = mapped_column(String(50), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
