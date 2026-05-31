@@ -1,55 +1,72 @@
 version: '3.8'
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Riam Platform — Local Development Docker Compose
+#
+# Usage:
+#   docker compose up -d          # Start all services
+#   docker compose down           # Stop all services
+#   docker compose logs -f        # Stream logs
+#
+# Environment variables are loaded from backend/.env
+# Copy backend/.env.example → backend/.env and fill in real values first.
+# ──────────────────────────────────────────────────────────────────────────────
+
 services:
-  # 1. PostgreSQL Vector DB (pgvector)
+
+  # ── 1. PostgreSQL + pgvector ─────────────────────────────────────────────────
   postgres:
     image: ankane/pgvector:latest
     container_name: riam-postgres
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: riam
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-riam}
     volumes:
       - riam_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d riam"]
-      interval: 5s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-riam}"]
+      interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - riam-network
 
-  # 2. FastAPI Backend
+  # ── 2. FastAPI Backend ────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: riam-backend
+    restart: unless-stopped
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     environment:
-      - ENV=production
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@postgres:5432/riam
-      - CLERK_SECRET_KEY=sk_test_clerk_secret
-      - CLERK_PUBLISHABLE_KEY=pk_test_clerk_pub
-      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_clerk_pub
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - OPENAI_API_KEY=sk-proj-openai_key
-      - LANGSMITH_API_KEY=lsv2_pt_key
-      - LANGSMITH_PROJECT=riam-support-agent
-      - FIRECRAWL_API_KEY=fc-key
+      # Override DATABASE_URL to use the compose postgres service hostname
+      - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-riam}
+      - ENV=${ENV:-production}
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - riam-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 40s
+      retries: 3
 
-  # 3. Adminer (Visual DB Admin)
+  # ── 3. Adminer — Visual DB Admin UI ──────────────────────────────────────────
   adminer:
     image: adminer:latest
     container_name: riam-adminer
+    restart: unless-stopped
     ports:
       - "8080:8080"
     depends_on:
@@ -59,6 +76,7 @@ services:
 
 volumes:
   riam_postgres_data:
+    driver: local
 
 networks:
   riam-network:

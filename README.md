@@ -3,17 +3,44 @@
 </p>
 
 <p align="center">
-  <a href="http://localhost:3000/test-widget.html"><strong><u>Live Demo Sandbox</u></strong></a> &nbsp;&bull;&nbsp; 
-  <a href="http://localhost:8000/docs"><strong><u>Interactive API Docs</u></strong></a> &nbsp;&bull;&nbsp; 
-  <a href="./docs/report.md"><strong><u>Technical Walkthrough Report</u></strong></a>
+  <a href="http://localhost:3000/test-widget.html"><strong><u>Live Demo</u></strong></a> &nbsp;&bull;&nbsp; 
+  <a href="http://localhost:8000/docs"><strong><u>API Docs</u></strong></a> &nbsp;&bull;&nbsp; 
+  <a href="https://github.com/mariiammaysara/RIAM/issues"><strong><u>Report Issue</u></strong></a>
 </p>
 
 # Riam AI Support Platform
 
-AI-powered, enterprise-grade customer support infrastructure built with **FastAPI**, **Next.js**, **LangGraph**, and **pgvector**.
+AI-powered, production-grade customer support infrastructure built with **FastAPI**, **Next.js**, **LangGraph**, and **pgvector**.
 
 Deploy intelligent support agents equipped with semantic RAG pipelines, production-grade memory, automated fallback triggers, human-in-the-loop handoff workflows, and elegant embeddable chat widgets.
 
+## What is Riam?
+
+**Riam** is a production-grade multi-tenant AI customer support platform. It enables organizations to build, train, and customize highly intelligent autonomous support agents in minutes.
+
+The platform allows you to upload PDF files or ingest website URLs to enrich the agent's knowledge base (RAG Ingestion Pipeline). It also provides an elegant, animated, and fast chat widget that can be embedded into any website with a single click and a one-line script.
+
+---
+
+## Why Riam?
+
+**Riam** is designed to outperform traditional solutions by solving key technical and operational challenges:
+
+* **Zero-Cost Local Mode:** You can run the platform completely free on your local machine. It utilizes a local vector generation engine from HuggingFace and ultra-fast inference via Groq (Llama 3.3) for a completely free setup, eliminating expensive cloud service bills.
+* **Rigid Multi-Tenancy:** The architecture is built to support hundreds of organizations with absolute data separation. Custom agent settings, vector stores, and conversation transcripts are strictly isolated at the database level using Row-Level Security.
+* **Accurate AI and No Hallucinations:** Powered by an advanced LangGraph state machine, the support agent does not synthesize unverified claims. Queries are classified by an intelligent router node, semantically matched with vector embeddings (pgvector), validated, and verified for absolute accuracy.
+* **Smart Human Handoff:** When an agent encounters an ambiguous question or a user requests human assistance, the system automatically pauses the AI workflow and escalates the conversation to a live human inbox (Inbox Support), alerting support representatives instantly.
+* **Executive Analytics:** A real-time visual dashboard monitors the performance of both AI agents and human support agents with exact metrics (AI resolution rate, average response times, and total volume).
+
+---
+
+## How it Works
+
+Riam automates support operations in three simple steps:
+
+1. **Ingest Knowledge:** Ingest PDF documents or input website URLs in the Knowledge Hub. The background pipeline automatically chunks, encodes, and indexes documents into isolated pgvector stores.
+2. **Configure the Agent:** Customize the system instructions, select the LLM provider (defaulting to Groq Llama-3.3 for zero-cost operation), and customize visual branding themes.
+3. **Embed the Widget:** Copy the single-line embeddable script snippet and paste it onto the target website. The floating customer support widget activates immediately, ready to stream grounded answers or trigger live human takeover workflows.
 
 ---
 
@@ -62,7 +89,7 @@ Perfect for developers, startups, or offline testing. No paid API bills!
 - **Local / Free Inference**: Powered by **Groq (`llama-3.3-70b-versatile`)** using their generous free tier keys, or entirely offline LLMs.
 - **Local DB Fallback**: Supports local Docker PostgreSQL + pgvector, or automatically falls back to an in-memory **SQLite** engine for running the full test suite with no setup.
 
-### 2. Enterprise Cloud Mode (Production Scaling)
+### 2. Production Cloud Mode (Production Scaling)
 Perfect for scaling the platform to hundreds of business tenants.
 - **Cloud Embeddings**: Google Gemini (`gemini-embedding-001`) or OpenAI (`text-embedding-3-small`).
 - **Cloud Inference**: Google Gemini (`gemini-2.0-flash`), OpenAI (`gpt-4o`), or Anthropic (`claude-3-5-sonnet`).
@@ -73,26 +100,7 @@ Perfect for scaling the platform to hundreds of business tenants.
 
 ## System Architecture & Data Flow
 
-```mermaid
-graph TD
-    User([Customer Web App / Widget]) -->|1. Chat Message| Widget[Embeddable Riam Widget]
-    Widget -->|2. HTTP / WebSockets| FastAPI[FastAPI Backend Server]
-    FastAPI -->|3. Route / Tenant Scope| LangGraph[LangGraph AI Orchestrator]
-    
-    subgraph AI Reasoning Loop
-        LangGraph -->|4. Query Vectorization| Embedding[HuggingFace / Gemini Embeddings]
-        Embedding -->|5. Semantic Vector Search| PgVector[(Neon Postgres + pgvector)]
-        PgVector -->|6. Relevant Context Chunks| LangGraph
-        LangGraph -->|7. Grounded LLM Call| LLM[Groq Llama-3.3 / Gemini]
-    end
-    
-    LLM -->|8. Formulate Response| LangGraph
-    LangGraph -->|9. Escalate?| Decision{Trigger Escalation?}
-    Decision -->|Yes| Handoff[Active Human Rep Dashboard]
-    Decision -->|No| FastAPI
-    
-    FastAPI -->|10. Stream Token Response| User
-```
+![Riam System Architecture](./docs/architecture.svg)
 
 ---
 
@@ -221,6 +229,34 @@ riam-platform/
 
 ---
 
+## Observability & LangSmith Tracing
+
+Riam is equipped with production-grade agent observability using **LangSmith** to trace, debug, and monitor every LLM prompt, LangGraph node transition, and RAG retrieval call in real time.
+
+### 1. Enable Tracing in your Environment
+Update your `backend/.env` file to enable tracing and inject your LangSmith API key:
+```env
+# ── Observability / LangSmith ─────────────────────────────────────────────────
+LANGCHAIN_TRACING_V2=true
+LANGSMITH_API_KEY=lsv2_pt_your_real_key_here
+LANGSMITH_PROJECT=riam-support-agent
+```
+
+### 2. Run the Verification Script
+Run the premium built-in diagnostics utility inside the `backend/` directory to audit configuration, test credentials, and send a test trace to your dashboard:
+```bash
+cd backend
+uv run python verify_langsmith.py
+```
+
+### 3. Analyze Runs in the Dashboard
+Log in to your [LangSmith Dashboard](https://smith.langchain.com), select your active workspace, and open the **`riam-support-agent`** project. You can inspect complete step-by-step trace trees showing:
+* **Router Nodes**: Direct vs. retrieval classification.
+* **Retrieval & Grading**: Quality and distance scores of database chunks.
+* **LLM Streaming Tokens**: Exactly which prompts and tokens were generated.
+
+---
+
 ## Getting Started & Quick Local Setup
 
 Follow these simple steps to run the complete platform locally.
@@ -231,8 +267,8 @@ Follow these simple steps to run the complete platform locally.
 
 ### 1. Clone the repository
 ```bash
-git clone <repository-url>
-cd Riam
+git clone https://github.com/mariiammaysara/RIAM.git
+cd RIAM
 ```
 
 ### 2. Configure Environment Variables
@@ -265,6 +301,12 @@ uv run uvicorn app.main:app --reload
 ```
 *The backend startup lifespan automatically pre-loads and caches the HuggingFace model on startup to prevent request-time overhead.*
 
+> [!WARNING]
+> ⚠️ **First-Time Embedding Model Ingestion Warning:**
+> The very first time you start the backend service or upload a document, the system will download the local **HuggingFace Embedding Model (`all-mpnet-base-v2`)** to your machine (approximately 420MB). This initial download can take a few minutes depending on your internet connection.
+> 
+> Once the model is cached locally, all future server startups, embeddings, and document ingestions will run instantly and completely offline.
+
 ---
 
 ### 4. Run the Frontend Dashboard
@@ -287,10 +329,53 @@ To test the entire RAG pipeline and widget client without any integrations:
 
 ## Roadmap & Future Scope
 
-- **Next-Gen Authentication**: Clerk Auth integration for fully managed SaaS client portal.
-- **Infinite Chat Memory**: Stateful conversation persistence across sessions using PostgreSQL.
-- **Real-Time Tool Calling**: Enable agents to perform active API operations (order lookups, status updates).
-- **Omnichannel Integrations**: Native channel interfaces for Slack, WhatsApp, and CRM software.
+### 1. Commercial SaaS & Subscription Billing
+
+- **Metered Usage Billing**: Integration of **Stripe** for pay-as-you-go metered API usage and automated billing based on token consumption or document storage size.
+
+- **Tier-based Tenant Licensing**: Multi-tier tenant subscription structures (Starter, Growth, Scale) configured in the client portal to control allowed agent count, active vector storage limits, and custom domain access.
+
+### 2. Expanded AI Ecosystem
+
+- **More LLM & Embedding Providers**: Support for advanced open and closed ecosystems including **DeepSeek**, **Mistral**, **Ollama**, and **Cohere** for specialized domain reasoning and high-performance multilingual retrieval.
+
+- **Dynamic Routing Optimizers**: Intelligent routing models to dynamically switch between low-cost local inference engines and high-reasoning cloud models on the fly depending on user query complexity.
+
+### 3. Multi-Cloud Deployment Options
+
+- **Amazon Web Services (AWS)**: Infrastructure-as-Code (Terraform) templates to deploy Riam to **AWS ECS/EKS** with auto-scaling compute pools, Application Load Balancers, and AWS RDS PostgreSQL with pgvector.
+
+- **Oracle Cloud Infrastructure (OCI)**: High-performance cloud architecture blueprints for deploying on OCI using OKE (Container Engine for Kubernetes) and OCI Autonomous Database for extremely low latency and secure scaling.
+
+### 4. High-Scale System Design & Scalability
+
+- **Distributed Ingestion Queues**: Migrating chunking, web scraping, and vector encoding pipelines to **Celery and Redis** distributed worker nodes to completely offload processing from the main FastAPI server.
+
+- **Caching & Session Hydration**: Implementation of **Redis** cache stores for conversation session logs, system prompt states, and tenant details, drastically minimizing direct relational database roundtrips.
+
+- **pgvector Read Replicas**: Scaled database clusters with PGVector read replicas to distribute high-volume semantic queries, ensuring sub-50ms search times under high request concurrency.
+
+- **Global CDN for Chat Widgets**: Serving embeddable JavaScript chat widget bundles (`widget.js`) via globally distributed edge networks (Cloudflare) to minimize initial page load times for client sites.
+
+---
+
+## Contributing
+
+Contributions to Riam are welcome! If you would like to help improve the platform, please follow these steps:
+
+1. Fork the repository on GitHub.
+2. Create a new branch for your feature or bug fix (`git checkout -b feature/your-feature-name`).
+3. Commit your changes with clear, descriptive commit messages.
+4. Push your branch to your forked repository.
+5. Open a Pull Request pointing to the main branch, describing the changes made and the problem solved.
+
+Please ensure all new code includes appropriate tests and complies with the existing project structure and styling conventions.
+
+---
+
+## License
+
+This project is licensed under the MIT License. You are free to use, modify, and distribute this software for both personal and commercial applications, subject to the conditions outlined in the [LICENSE](./LICENSE) file.
 
 ---
 
