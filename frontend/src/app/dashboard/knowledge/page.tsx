@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
+import { motion } from "framer-motion";
 
 // TypeScript Interfaces matching Backend Schemas
 interface KnowledgeSource {
@@ -17,6 +18,7 @@ interface KnowledgeSource {
 export default function RiamKnowledgeHub() {
     const backendUrl = "http://localhost:8000";
     const router = useRouter();
+    const pathname = usePathname();
     const [canGoBack, setCanGoBack] = useState(false);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -57,7 +59,7 @@ export default function RiamKnowledgeHub() {
             const res = await fetch(`${backendUrl}/api/v1/conversations/`, { headers: authHeaders });
             if (res.ok) {
                 const data = await res.json();
-                const count = data.filter((c: any) => c.status === "handoff").length;
+                const count = data.filter((c: { status: string }) => c.status === "handoff").length;
                 setEscalatedCount(count);
             }
         } catch (err) {
@@ -79,7 +81,7 @@ export default function RiamKnowledgeHub() {
 
     // Set document title
     useEffect(() => {
-        document.title = "RIAM | Knowledge Hub";
+        document.title = "RIAM | Knowledge Hub & Vectors";
     }, []);
 
     // Back Button navigation safety
@@ -93,18 +95,13 @@ export default function RiamKnowledgeHub() {
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => {
             if (e.key === "Escape" || e.keyCode === 27) {
-                console.log("RIAM Knowledge Hub: Escape key pressed, resetting forms");
-                setKbName("");
-                setKbUrl("");
-                setPdfFile(null);
-                setUploadError(null);
-                setUploadResult(null);
-                setIsSidebarOpen(false);
+                console.log("RIAM Knowledge Hub: Escape key pressed, going back");
+                router.back();
             }
         };
         document.addEventListener("keydown", handleEsc, true);
         return () => document.removeEventListener("keydown", handleEsc, true);
-    }, []);
+    }, [router]);
 
     // --- Action Handlers ---
     
@@ -142,7 +139,6 @@ export default function RiamKnowledgeHub() {
 
             // STEP 2: Trigger Ingestion based on Type
             if (kbType === "url") {
-                const currentKbUrl = kbUrl;
                 setKbUrl("");
                 
                 try {
@@ -152,7 +148,7 @@ export default function RiamKnowledgeHub() {
                     });
                     
                     if (scrapeRes.ok) {
-                        const resultData = await scrapeRes.json();
+                        await scrapeRes.json();
                         setUploadResult(`Scraper triggered successfully for "${currentKbName}". Ingestion is processing in the background.`);
                     } else {
                         const errorText = await scrapeRes.text();
@@ -232,6 +228,47 @@ export default function RiamKnowledgeHub() {
         }
     };
 
+    const handleDeleteKnowledge = async (id: string, name: string) => {
+        const confirmed = window.confirm(`Are you sure you want to delete the knowledge source "${name}"? This will delete all its vector embeddings and cannot be undone.`);
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`${backendUrl}/api/v1/knowledge/${id}`, {
+                method: "DELETE",
+                headers: authHeaders
+            });
+            if (res.ok) {
+                setKnowledgeList((prev) => prev.filter((item) => item.id !== id));
+            } else {
+                alert("Failed to delete the knowledge source.");
+            }
+        } catch (err) {
+            console.error("Error deleting knowledge source:", err);
+            alert("Error deleting knowledge source.");
+        }
+    };
+
+    const handleClearAllKnowledge = async () => {
+        const confirmed = window.confirm("Are you sure you want to clear all knowledge bases? This will permanently delete all vector embeddings and cannot be undone!");
+        if (!confirmed) return;
+
+        try {
+            const res = await fetch(`${backendUrl}/api/v1/knowledge/`, {
+                method: "DELETE",
+                headers: authHeaders
+            });
+            if (res.ok) {
+                setKnowledgeList([]);
+            } else {
+                alert("Failed to clear knowledge bases.");
+            }
+        } catch (err) {
+            console.error("Error clearing knowledge bases:", err);
+            alert("Error clearing knowledge bases.");
+        }
+    };
+
+
     return (
         <div className="flex h-screen bg-[#0a0b0f] text-[#e2e8f0] font-sans overflow-hidden">
             {/* Sidebar Backdrop Overlay on Mobile */}
@@ -249,48 +286,38 @@ export default function RiamKnowledgeHub() {
             `}>
                 <div className="p-6 md:p-3 lg:p-6 group-hover:md:p-6 transition-all duration-300 overflow-hidden">
                     {/* Logo Section - Minimal "RIAM" wordmark */}
-                    <div className="flex items-center space-x-2 mb-8 h-8 overflow-hidden">
+                    <Link href="/" className="flex items-center space-x-2 mb-8 h-8 overflow-hidden hover:opacity-80 transition-all cursor-pointer">
                         <span className="text-sm font-light tracking-[0.25em] text-[#e2e8f0] whitespace-nowrap">
                             <span className="font-extralight text-[#8892a4]">R</span>
                             <span className="md:hidden lg:inline group-hover:md:inline transition-all duration-300">IAM</span>
                         </span>
-                    </div>
+                    </Link>
 
                     <nav className="space-y-1">
-                        <button
-                            onClick={() => window.location.href = '/dashboard'}
-                            className="w-full flex items-center space-x-3 px-4 py-3.5 md:px-1.5 md:py-2.5 lg:px-4 lg:py-3.5 group-hover:md:px-4 group-hover:md:py-3.5 text-xs font-medium tracking-wide transition-all duration-300 border-l-2 border-transparent text-[#8892a4] hover:text-[#e2e8f0] min-h-[44px]"
+                        <Link
+                            href="/dashboard/knowledge"
+                            className={`w-full flex items-center space-x-3 px-4 py-3.5 md:px-1.5 md:py-2.5 lg:px-4 lg:py-3.5 group-hover:md:px-4 group-hover:md:py-3.5 text-xs font-medium tracking-wide transition-all duration-300 border-l-2 min-h-[44px] ${pathname.includes("/knowledge") ? "border-[#7c6af7] bg-[#7c6af7]/5 text-[#e2e8f0]" : "border-transparent text-[#8892a4] hover:text-[#e2e8f0]"}`}
+                        >
+                            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-16.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-16.25v16.25" />
+                            </svg>
+                            <span className="md:hidden lg:inline group-hover:md:inline transition-all duration-300 whitespace-nowrap">KNOWLEDGE HUB</span>
+                        </Link>
+
+                        <Link
+                            href="/dashboard"
+                            className={`w-full flex items-center space-x-3 px-4 py-3.5 md:px-1.5 md:py-2.5 lg:px-4 lg:py-3.5 group-hover:md:px-4 group-hover:md:py-3.5 text-xs font-medium tracking-wide transition-all duration-300 border-l-2 min-h-[44px] ${pathname === "/dashboard" ? "border-[#7c6af7] bg-[#7c6af7]/5 text-[#e2e8f0]" : "border-transparent text-[#8892a4] hover:text-[#e2e8f0]"}`}
                         >
                             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                                 <rect x="3" y="3" width="18" height="18" rx="2" />
                                 <path d="M21 12H3M12 3v18" />
                             </svg>
                             <span className="md:hidden lg:inline group-hover:md:inline transition-all duration-300 whitespace-nowrap">AGENTS DESIGNER</span>
-                        </button>
-                        
-                        <button
-                            onClick={() => {}}
-                            className="w-full flex items-center space-x-3 px-4 py-3.5 md:px-1.5 md:py-2.5 lg:px-4 lg:py-3.5 group-hover:md:px-4 group-hover:md:py-3.5 text-xs font-medium tracking-wide transition-all duration-300 border-l-2 border-[#7c6af7] bg-[#7c6af7]/5 text-[#e2e8f0] min-h-[44px]"
-                        >
-                            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-16.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-16.25v16.25" />
-                            </svg>
-                            <span className="md:hidden lg:inline group-hover:md:inline transition-all duration-300 whitespace-nowrap">KNOWLEDGE HUB</span>
-                        </button>
+                        </Link>
 
-                        <button
-                            onClick={() => window.location.href = '/dashboard/analytics'}
-                            className="w-full flex items-center space-x-3 px-4 py-3.5 md:px-1.5 md:py-2.5 lg:px-4 lg:py-3.5 group-hover:md:px-4 group-hover:md:py-3.5 text-xs font-medium tracking-wide transition-all duration-300 border-l-2 border-transparent text-[#8892a4] hover:text-[#e2e8f0] min-h-[44px]"
-                        >
-                            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v5.25c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 013 18.375v-5.25zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125v-9.75zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v14.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                            </svg>
-                            <span className="md:hidden lg:inline group-hover:md:inline transition-all duration-300 whitespace-nowrap">ANALYTICS</span>
-                        </button>
-
-                        <button
-                            onClick={() => window.location.href = '/dashboard'}
-                            className="w-full flex items-center space-x-3 px-4 py-3.5 md:px-1.5 md:py-2.5 lg:px-4 lg:py-3.5 group-hover:md:px-4 group-hover:md:py-3.5 text-xs font-medium tracking-wide transition-all duration-300 border-l-2 border-transparent text-[#8892a4] hover:text-[#e2e8f0] min-h-[44px]"
+                        <Link
+                            href="/dashboard/inbox"
+                            className={`w-full flex items-center space-x-3 px-4 py-3.5 md:px-1.5 md:py-2.5 lg:px-4 lg:py-3.5 group-hover:md:px-4 group-hover:md:py-3.5 text-xs font-medium tracking-wide transition-all duration-300 border-l-2 min-h-[44px] ${pathname.includes("/inbox") ? "border-[#7c6af7] bg-[#7c6af7]/5 text-[#e2e8f0]" : "border-transparent text-[#8892a4] hover:text-[#e2e8f0]"}`}
                         >
                             <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
@@ -301,7 +328,17 @@ export default function RiamKnowledgeHub() {
                                     {escalatedCount}
                                 </span>
                             )}
-                        </button>
+                        </Link>
+
+                        <Link
+                            href="/dashboard/analytics"
+                            className={`w-full flex items-center space-x-3 px-4 py-3.5 md:px-1.5 md:py-2.5 lg:px-4 lg:py-3.5 group-hover:md:px-4 group-hover:md:py-3.5 text-xs font-medium tracking-wide transition-all duration-300 border-l-2 min-h-[44px] ${pathname.includes("/analytics") ? "border-[#7c6af7] bg-[#7c6af7]/5 text-[#e2e8f0]" : "border-transparent text-[#8892a4] hover:text-[#e2e8f0]"}`}
+                        >
+                            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v5.25c0 .621-.504 1.125-1.125 1.125h-2.25A1.125 1.125 0 013 18.375v-5.25zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125v-9.75zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v14.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                            </svg>
+                            <span className="md:hidden lg:inline group-hover:md:inline transition-all duration-300 whitespace-nowrap">ANALYTICS</span>
+                        </Link>
                     </nav>
                 </div>
 
@@ -483,7 +520,18 @@ export default function RiamKnowledgeHub() {
 
                         {/* Status tracker sidebar card */}
                         <div className="md:col-span-5 lg:col-span-4 bg-[#111318] border border-[#1e2330] rounded-xl p-6 shadow-xl space-y-4 glass-panel">
-                            <h3 className="text-xs font-bold uppercase tracking-wider text-[#e2e8f0]">Vector Storage Index ({knowledgeList.length})</h3>
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xs font-bold uppercase tracking-wider text-[#e2e8f0]">Vector Storage Index ({knowledgeList.length})</h3>
+                                {knowledgeList.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleClearAllKnowledge}
+                                        className="text-[9px] font-bold tracking-widest uppercase text-[#ef4444] hover:text-[#f87171] transition-all focus:outline-none min-h-[28px] flex items-center justify-center"
+                                    >
+                                        Clear All
+                                    </button>
+                                )}
+                            </div>
                             <div className="space-y-3">
                                 {knowledgeList.map((kb, index) => (
                                     <motion.div 
@@ -495,24 +543,40 @@ export default function RiamKnowledgeHub() {
                                         className="p-3.5 bg-[#0a0b0f] border border-[#1e2330] rounded-lg space-y-2 relative overflow-hidden transition-chic hover:bg-[#111318]"
                                     >
                                         <div className="flex items-center justify-between">
-                                            <h5 className="text-xs font-bold truncate max-w-[70%] text-[#e2e8f0]">{kb.name}</h5>
+                                            <h5 className="text-xs font-bold truncate max-w-[60%] text-[#e2e8f0]">{kb.name}</h5>
                                             
-                                            {/* Ingestion status pills */}
-                                            {kb.status === "indexing" && (
-                                                <span className="text-[9px] font-bold px-1.5 py-0.5 text-[#f59e0b] border border-[#f59e0b]/20 rounded uppercase tracking-wider animate-pulse">
-                                                    Indexing
-                                                </span>
-                                            )}
-                                            {kb.status === "ready" && (
-                                                <span className="text-[9px] font-bold px-1.5 py-0.5 text-[#10b981] border border-[#10b981]/20 rounded uppercase tracking-wider">
-                                                    Ready
-                                                </span>
-                                            )}
-                                            {kb.status === "failed" && (
-                                                <span className="text-[9px] font-bold px-1.5 py-0.5 text-[#ef4444] border border-[#ef4444]/20 rounded uppercase tracking-wider">
-                                                    Failed
-                                                </span>
-                                            )}
+                                            <div className="flex items-center space-x-2 shrink-0">
+                                                {/* Ingestion status pills */}
+                                                {kb.status === "indexing" && (
+                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 text-[#f59e0b] border border-[#f59e0b]/20 rounded uppercase tracking-wider animate-pulse">
+                                                        Indexing
+                                                    </span>
+                                                )}
+                                                {kb.status === "ready" && (
+                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 text-[#10b981] border border-[#10b981]/20 rounded uppercase tracking-wider">
+                                                        Ready
+                                                    </span>
+                                                )}
+                                                {kb.status === "failed" && (
+                                                    <span className="text-[9px] font-bold px-1.5 py-0.5 text-[#ef4444] border border-[#ef4444]/20 rounded uppercase tracking-wider">
+                                                        Failed
+                                                    </span>
+                                                )}
+
+                                                {/* Delete Button */}
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleDeleteKnowledge(kb.id, kb.name);
+                                                    }}
+                                                    className="p-1 text-[#8892a4] hover:text-[#ef4444] transition-all rounded shrink-0 min-h-[32px] min-w-[32px] flex items-center justify-center"
+                                                    title="Delete source"
+                                                >
+                                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                    </svg>
+                                                </button>
+                                            </div>
                                         </div>
                                         <div className="flex justify-between items-center text-[9px] text-[#4a5568] font-mono">
                                             <span>TYPE: {kb.source_type.toUpperCase()}</span>

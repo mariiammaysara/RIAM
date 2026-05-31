@@ -3,6 +3,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // Define TypeScript structures
 interface Message {
@@ -38,11 +40,13 @@ export default function EmbedChatWidget() {
     const [isTyping, setIsTyping] = useState(false);
     const [handoffMode, setHandoffMode] = useState(false);
 
-    const scrollRef = useRef<HTMLDivElement>(null);
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const isLoading = isStreaming || isTyping;
 
     // Set document title
     useEffect(() => {
-        document.title = "RIAM";
+        document.title = "RIAM Support Chat";
     }, []);
 
     // Fetch Agent details on load
@@ -77,8 +81,69 @@ export default function EmbedChatWidget() {
 
     // Scroll chat window to bottom on new messages
     useEffect(() => {
-        scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, [messages, isTyping]);
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, isLoading]);
+
+    // Poll for new messages (crucial for receiving live human operator responses in real-time)
+    useEffect(() => {
+        if (!conversationId) return;
+
+        const pollMessagesAndStatus = async () => {
+            try {
+                // 1. Fetch public message history
+                const response = await fetch(`${backendUrl}/api/v1/conversations/${conversationId}/messages/public`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const formatted: Message[] = data.map((msg: { id: string; sender: string; content: string; created_at: string }) => ({
+                        id: msg.id,
+                        sender: msg.sender as "customer" | "agent" | "human",
+                        content: msg.content,
+                        timestamp: new Date(msg.created_at)
+                    }));
+                    
+                    if (formatted.length > 0) {
+                        setMessages(prev => {
+                            const welcomeMsg = prev.find(m => m.id === "welcome-bubble");
+                            const result = welcomeMsg ? [welcomeMsg] : [];
+                            const signatures = new Set<string>();
+                            const ids = new Set<string>();
+
+                            formatted.forEach(msg => {
+                                const sig = `${msg.sender}:${msg.content}`;
+                                signatures.add(sig);
+                                ids.add(msg.id);
+                                result.push(msg);
+                            });
+
+                            prev.forEach(msg => {
+                                if (msg.id === "welcome-bubble") return;
+                                const sig = `${msg.sender}:${msg.content}`;
+                                if (msg.id.startsWith("usr-") || msg.id.startsWith("ai-stream-") || msg.id.startsWith("err-")) {
+                                    if (!signatures.has(sig) && !ids.has(msg.id)) {
+                                        result.push(msg);
+                                    }
+                                }
+                            });
+
+                            // Deduplicate messages by exact ID
+                            const seenIds = new Set<string>();
+                            return result.filter(msg => {
+                                if (seenIds.has(msg.id)) return false;
+                                seenIds.add(msg.id);
+                                return true;
+                            });
+                        });
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to poll message updates:", err);
+            }
+        };
+
+        // Poll every 3 seconds
+        const interval = setInterval(pollMessagesAndStatus, 3000);
+        return () => clearInterval(interval);
+    }, [conversationId]);
 
     // 1. Create a secure Chat Session
     const startNewSession = async () => {
@@ -146,15 +211,13 @@ export default function EmbedChatWidget() {
                 for (const event of sseEvents) {
                     if (!event.trim()) continue;
 
-                    // Capture SSE Event headers (event: type, data: payload)
                     if (event.startsWith("event: token")) {
                         const dataLine = event.split("\n").find((line) => line.startsWith("data: "));
                         if (dataLine) {
                             const rawData = JSON.parse(dataLine.replace("data: ", ""));
                             accumulatedText += rawData.token;
-                            setIsTyping(false); // Hide typing dot since typing tokens started flowing
+                            setIsTyping(false); // Hide typing dots once tokens flow
                             
-                            // Update placeholder content
                             setMessages((prev) =>
                                 prev.map((msg) =>
                                     msg.id === placeholderId
@@ -178,14 +241,12 @@ export default function EmbedChatWidget() {
                             );
                         }
                     } else if (event.startsWith("event: done")) {
-                        // Finished streaming cleanly
                         break;
                     }
                 }
             }
         } catch (err) {
             console.error("SSE stream error:", err);
-            // Fallback error indicator in chat bubble
             setMessages((prev) =>
                 prev.map((msg) =>
                     msg.id === placeholderId
@@ -207,7 +268,7 @@ export default function EmbedChatWidget() {
         const userQuery = input.trim();
         setInput("");
 
-        // Insert User message to UI
+        // Insert User message to local UI state
         const userMsg: Message = {
             id: `usr-${Date.now()}`,
             sender: "customer",
@@ -224,7 +285,21 @@ export default function EmbedChatWidget() {
         }
 
         if (activeSessionId) {
-            await triggerSSEStream(activeSessionId, userQuery);
+            if (handoffMode) {
+                // If in Handoff/Human mode, bypass AI entirely and post directly to DB
+                try {
+                    await fetch(`${backendUrl}/api/v1/conversations/${activeSessionId}/messages/public`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ message: userQuery }),
+                    });
+                } catch (err) {
+                    console.error("Failed to append customer handoff message:", err);
+                }
+            } else {
+                // Otherwise run AI response stream
+                await triggerSSEStream(activeSessionId, userQuery);
+            }
         } else {
             // Failure fallback
             setMessages((prev) => [
@@ -240,52 +315,96 @@ export default function EmbedChatWidget() {
         }
     };
 
-    // Close floating iframe trigger inside parent
     const handleClose = () => {
         window.parent.postMessage({ type: "riam-close-widget" }, "*");
     };
 
     // Branding variables
-    const primaryColor = agent?.config?.primaryColor || "#6366f1";
+    const primaryColor = agent?.config?.primaryColor || "#7c6af7";
     const avatarUrl = agent?.config?.avatarUrl;
     const placeholderText = agent?.config?.placeholderText || "Write your message...";
 
     return (
-        <motion.div 
-            initial={{ opacity: 0, scale: 0.95, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="flex flex-col h-screen w-full bg-slate-50 overflow-hidden font-sans border-0 sm:border border-slate-100 rounded-none sm:rounded-2xl sm:max-w-[420px] sm:max-h-[600px] sm:fixed sm:bottom-6 sm:right-6 sm:shadow-2xl shadow-indigo-500/10"
-        >
-            {/* Widget Elegant Header */}
-            <div 
-                className="flex items-center justify-between px-5 py-4 text-white shadow-md relative z-10 shrink-0"
-                style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, #1e1b4b 100%)` }}
-            >
+        <div className="flex flex-col h-screen w-full bg-[#0b0b14] overflow-hidden font-sans border-0 sm:border border-slate-900 rounded-none sm:rounded-2xl sm:max-w-[420px] sm:max-h-[600px] sm:fixed sm:bottom-6 sm:right-6 sm:shadow-2xl shadow-indigo-950/20">
+            {/* Import Google Font Inter */}
+            <style jsx global>{`
+                @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+                body {
+                    font-family: 'Inter', sans-serif;
+                }
+                ::-webkit-scrollbar {
+                    width: 5px;
+                }
+                ::-webkit-scrollbar-track {
+                    background: #0f0f1c;
+                }
+                ::-webkit-scrollbar-thumb {
+                    background: #232338;
+                    border-radius: 4px;
+                }
+                ::-webkit-scrollbar-thumb:hover {
+                    background: #3c3c5e;
+                }
+                .scroll-container {
+                    overflow-y: auto;
+                    scroll-behavior: smooth;
+                }
+                .prose-invert a {
+                    color: ${primaryColor} !important;
+                    text-decoration: underline;
+                }
+                .prose-invert code {
+                    background-color: #0b0b14 !important;
+                    padding: 0.125rem 0.25rem;
+                    border-radius: 0.25rem;
+                    font-family: monospace;
+                }
+                .prose-invert pre {
+                    background-color: #0b0b14 !important;
+                    padding: 0.75rem;
+                    border-radius: 0.5rem;
+                    overflow-x: auto;
+                }
+                .prose-invert pre code {
+                    padding: 0 !important;
+                    background-color: transparent !important;
+                }
+            `}</style>
+
+            {/* Flat Premium Dark Header */}
+            <div className="flex items-center justify-between px-5 py-4 bg-[#0f0f1a] border-b border-[#1e2330] shrink-0">
                 <div className="flex items-center space-x-3">
                     <div className="relative">
                         {avatarUrl ? (
-                            <img src={avatarUrl} alt="Avatar" className="w-10 h-10 rounded-full object-cover border-2 border-white/20" />
+                            <img src={avatarUrl} alt="Avatar" className="w-8 h-8 rounded-full object-cover border border-[#1e2330]" />
                         ) : (
-                            <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-lg border-2 border-white/10 animate-pulse">
-                                R
+                            <div className="w-8 h-8 rounded-full bg-[#1e2330] flex items-center justify-center">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c6af7" strokeWidth="1.5">
+                                    <rect x="3" y="11" width="18" height="10" rx="2"/>
+                                    <path d="M9 11V7a3 3 0 016 0v4"/>
+                                    <circle cx="9" cy="16" r="1" fill="#7c6af7"/>
+                                    <circle cx="15" cy="16" r="1" fill="#7c6af7"/>
+                                    <path d="M12 3v2"/>
+                                </svg>
                             </div>
                         )}
-                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-slate-900 rounded-full animate-pulse"></span>
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-[#0f0f1a] rounded-full"></span>
                     </div>
                     <div>
-                        <h4 className="font-semibold text-sm leading-tight tracking-wide">{agent?.name || "Riam Support Bot"}</h4>
-                        <span className="text-xs text-emerald-200 font-medium">Online • Active</span>
+                        <h4 className="font-semibold text-xs text-[#e2e8f0] leading-tight tracking-wide">{agent?.name || "Riam Assistant"}</h4>
+                        <span className="text-[10px] text-[#10b981] font-medium tracking-wide mt-0.5 block">
+                            Online
+                        </span>
                     </div>
                 </div>
                 
                 {/* Close Button */}
                 <button 
                     onClick={handleClose} 
-                    className="p-2 rounded-full hover:bg-white/15 transition-all active:scale-95 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                    aria-label="Close chat bubble"
+                    className="p-2 rounded-full text-slate-400 hover:text-white hover:bg-[#252542] transition-all active:scale-95 min-h-[38px] min-w-[38px] flex items-center justify-center"
+                    aria-label="Close chat"
                 >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                     </svg>
                 </button>
@@ -299,108 +418,151 @@ export default function EmbedChatWidget() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -25 }}
                         transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                        className="bg-amber-50 border-b border-amber-100 px-4 py-2 flex items-start space-x-2.5 shrink-0"
+                        className="bg-amber-950/20 border-b border-amber-900/35 px-4 py-2.5 flex items-start space-x-2 shrink-0"
                     >
-                        <span className="text-amber-500 font-bold text-lg leading-none select-none">⚠️</span>
-                        <p className="text-xs text-amber-700 font-medium">
-                            Human handoff requested. A live agent has been notified and will reply shortly.
+                        <span className="text-amber-500 text-sm mt-0.5">⚠️</span>
+                        <p className="text-[10px] text-amber-300 font-medium leading-relaxed">
+                            Operator handoff active. A live assistant has been notified and will reply shortly.
                         </p>
                     </motion.div>
                 )}
             </AnimatePresence>
 
             {/* Conversation Window */}
-            <div className="flex-1 overflow-y-auto px-5 py-5 space-y-4 scrollbar-thin scrollbar-track-slate-100 scrollbar-thumb-slate-200">
+            <div className="flex-1 px-5 py-5 space-y-5 bg-[#0b0b14] scroll-container">
                 <AnimatePresence initial={false}>
                     {messages.map((msg) => (
                         <motion.div 
-                            initial={{ opacity: 0, y: 10, scale: 0.96 }}
+                            initial={{ opacity: 0, y: 10, scale: 0.98 }}
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             transition={{ type: "spring", damping: 25, stiffness: 250 }}
                             key={msg.id}
-                            className={`flex ${msg.sender === "customer" ? "justify-end" : "justify-start"}`}
+                            className={`flex flex-col ${msg.sender === "customer" ? "items-end" : "items-start"}`}
                         >
-                            <div className={`max-w-[78%] flex flex-col space-y-1`}>
-                                <div 
-                                    className={`px-4 py-3 rounded-2xl text-[13.5px] leading-relaxed shadow-sm font-normal tracking-wide whitespace-pre-wrap transition-all duration-300
-                                        ${msg.sender === "customer" 
-                                            ? "bg-slate-900 text-white rounded-br-none" 
-                                            : "bg-white text-slate-800 border border-slate-100 rounded-bl-none"
-                                        }
-                                    `}
-                                    style={msg.sender === "customer" ? { background: primaryColor } : {}}
-                                >
-                                    {msg.content}
+                            {/* Message Bubble */}
+                            <div 
+                                className={`px-4 py-3 rounded-2xl text-[13px] leading-relaxed shadow-sm font-normal tracking-wide transition-all duration-300
+                                    ${msg.sender === "customer" 
+                                        ? "bg-[#7c6af7] text-white rounded-tr-none" 
+                                        : msg.sender === "human"
+                                            ? "bg-[#1a1a2e] text-[#e2e8f0] rounded-tl-none border border-[#7c6af7]/20"
+                                            : "bg-[#1a1a2e] text-[#e2e8f0] rounded-tl-none"
+                                    }
+                                `}
+                                style={msg.sender === "customer" ? { background: primaryColor } : {}}
+                            >
+                                <div className="markdown-content">
+                                    <ReactMarkdown 
+                                        remarkPlugins={[remarkGfm]}
+                                        components={{
+                                            p: ({children}) => (
+                                                <p className="mb-2 last:mb-0">{children}</p>
+                                            ),
+                                            strong: ({children}) => (
+                                                <strong className="font-semibold text-white">
+                                                    {children}
+                                                </strong>
+                                            ),
+                                            ul: ({children}) => (
+                                                <ul className="list-disc list-inside mb-2 space-y-1">
+                                                    {children}
+                                                </ul>
+                                            ),
+                                            ol: ({children}) => (
+                                                <ol className="list-decimal list-inside mb-2 space-y-1">
+                                                    {children}
+                                                </ol>
+                                            ),
+                                            li: ({children}) => (
+                                                <li className="text-sm">{children}</li>
+                                            ),
+                                            code: ({children}) => (
+                                                <code className="bg-[#0a0b0f] px-1.5 py-0.5 rounded text-[#7c6af7] text-xs font-mono">
+                                                    {children}
+                                                </code>
+                                            ),
+                                            a: ({href, children}) => (
+                                                <a href={href} target="_blank" className="text-[#7c6af7] underline hover:opacity-80">
+                                                    {children}
+                                                </a>
+                                            ),
+                                        }}
+                                    >
+                                        {msg.content}
+                                    </ReactMarkdown>
                                 </div>
-                                <span className="text-[10px] text-slate-400 font-medium px-1.5 self-end select-none">
-                                    {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                </span>
                             </div>
+                            
+                            {/* Timestamp - Positioned Below the Bubble */}
+                            <span className="text-[10px] text-[#4e4e6a] font-medium mt-1 px-1 select-none">
+                                {msg.sender === "human" && <span className="text-[#7c6af7] font-semibold uppercase mr-1">Operator &bull; </span>}
+                                {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
                         </motion.div>
                     ))}
                 </AnimatePresence>
 
-                {/* Animated Typing indicator dots */}
+                {/* Animated Typing dots */}
                 <AnimatePresence>
-                    {isTyping && (
+                    {isLoading && (
                         <motion.div 
                             initial={{ opacity: 0, y: 5 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 5 }}
                             className="flex justify-start"
                         >
-                            <div className="bg-white border border-slate-100 px-4 py-3 rounded-2xl rounded-bl-none flex items-center space-x-1.5 shadow-sm">
+                            <div className="bg-[#1a1a2e] px-4 py-3 rounded-2xl rounded-tl-none flex items-center space-x-1.5 shadow-sm">
                                 <motion.span 
-                                    animate={{ y: [0, -6, 0] }}
+                                    animate={{ y: [0, -4, 0] }}
                                     transition={{ duration: 0.8, repeat: Infinity, delay: 0 }}
-                                    className="w-2 h-2 bg-slate-300 rounded-full"
+                                    className="w-1.5 h-1.5 bg-[#7c6af7] rounded-full"
                                 />
                                 <motion.span 
-                                    animate={{ y: [0, -6, 0] }}
+                                    animate={{ y: [0, -4, 0] }}
                                     transition={{ duration: 0.8, repeat: Infinity, delay: 0.15 }}
-                                    className="w-2 h-2 bg-slate-300 rounded-full"
+                                    className="w-1.5 h-1.5 bg-[#7c6af7] rounded-full"
                                 />
                                 <motion.span 
-                                    animate={{ y: [0, -6, 0] }}
+                                    animate={{ y: [0, -4, 0] }}
                                     transition={{ duration: 0.8, repeat: Infinity, delay: 0.3 }}
-                                    className="w-2 h-2 bg-slate-300 rounded-full"
+                                    className="w-1.5 h-1.5 bg-[#7c6af7] rounded-full"
                                 />
                             </div>
                         </motion.div>
                     )}
                 </AnimatePresence>
                 
-                <div ref={scrollRef} />
+                <div ref={messagesEndRef} />
             </div>
 
-            {/* Chat Input Footer */}
+            {/* Chat Input Footer - Borderless inside Premium Dark */}
             <form 
                 onSubmit={handleSubmit}
-                className="px-4 py-3 bg-white border-t border-slate-100 flex items-center space-x-3 shrink-0"
+                className="px-4 py-3 bg-[#0f0f1a] border-t border-[#1e2330] flex items-center space-x-3 shrink-0"
             >
                 <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
-                    disabled={isStreaming || handoffMode}
-                    placeholder={handoffMode ? "AI paused during human intervention..." : placeholderText}
-                    className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:bg-white transition-all disabled:opacity-50 text-slate-700 placeholder-slate-400 font-medium min-h-[44px]"
+                    disabled={isStreaming}
+                    placeholder={placeholderText}
+                    className="flex-1 px-3 py-2 bg-transparent border-0 focus:outline-none focus:ring-0 text-xs text-[#e2e8f0] placeholder-[#4e4e6a] font-medium min-h-[40px]"
                 />
                 
                 <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     type="submit"
-                    disabled={!input.trim() || isStreaming || handoffMode}
-                    className="p-2.5 rounded-xl text-white shadow-sm flex items-center justify-center hover:shadow-md active:scale-95 transition-all disabled:opacity-40 disabled:hover:shadow-none min-h-[44px] min-w-[44px]"
+                    disabled={!input.trim() || isStreaming}
+                    className="p-2.5 rounded-full text-white shadow-sm flex items-center justify-center active:scale-95 transition-all disabled:opacity-30 min-h-[38px] min-w-[38px]"
                     style={{ background: primaryColor }}
-                    aria-label="Send message"
+                    aria-label="Send"
                 >
-                    <svg className="w-5 h-5 transform rotate-90" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+                    <svg className="w-4 h-4 transform rotate-90 text-white" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                     </svg>
                 </motion.button>
             </form>
-        </motion.div>
+        </div>
     );
 }
