@@ -302,7 +302,7 @@ uv run uvicorn app.main:app --reload
 *The backend startup lifespan automatically pre-loads and caches the HuggingFace model on startup to prevent request-time overhead.*
 
 > [!WARNING]
-> ⚠️ **First-Time Embedding Model Ingestion Warning:**
+>  **First-Time Embedding Model Ingestion Warning:**
 > The very first time you start the backend service or upload a document, the system will download the local **HuggingFace Embedding Model (`all-mpnet-base-v2`)** to your machine (approximately 420MB). This initial download can take a few minutes depending on your internet connection.
 > 
 > Once the model is cached locally, all future server startups, embeddings, and document ingestions will run instantly and completely offline.
